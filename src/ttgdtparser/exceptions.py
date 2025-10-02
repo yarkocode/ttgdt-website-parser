@@ -15,3 +15,8 @@ class WebsiteUnavailableException(ParserException):
 class TableNotFoundExceptionOnAvailablePage(ParserException):
     def __init__(self, context: RequestInfo, message: str = "Table not found on available page"):
         super().__init__(message, context)
+
+
+class NoTimetableAvailablePerDate(ParserException):
+    def __init__(self, context: RequestInfo, message: str = "No timetable available per date"):
+        super().__init__(message, context)

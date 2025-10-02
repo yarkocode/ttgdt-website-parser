@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from pydantic import HttpUrl
 
 from .constants import day_names
-from .exceptions import WebsiteUnavailableException
+from .exceptions import WebsiteUnavailableException, NoTimetableAvailablePerDate
 from .helpers import normilize_group_number, is_time
 from .types import Lesson, Change, Group
 from .utils import build_date_from_humaned
@@ -23,6 +23,9 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
         bs = BeautifulSoup(html_body, 'lxml')
         table = bs.select_one('table.table.table-striped.table-bordered')
         rows = table.find_all('tr')[1:]
+
+        if date.weekday() == 6:
+            raise NoTimetableAvailablePerDate(response.request_info, "Requested date has not available lesson table")
 
         day = day_names[date.weekday()]
         found = False
