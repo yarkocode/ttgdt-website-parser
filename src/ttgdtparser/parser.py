@@ -63,7 +63,7 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
         return lessons
 
 
-async def parse_changes(url: HttpUrl):
+async def parse_changes(url: HttpUrl) -> Dict[str, list[Change]]:
     async with ClientSession() as session:
         async with session.get(str(url)) as response:
             if response.status != 200:
@@ -85,19 +85,20 @@ async def parse_changes(url: HttpUrl):
         for row in rows:
             tds = row.find_all('td')
 
-            if all(td == "" for td in tds):
+            if all(td.get_text() == "" for td in tds):
                 break
 
             group = tds[0].get_text().strip()
 
             if group != "":
                 current_group = normilize_group_number(number=tds[0].get_text())
+                changes[current_group] = []
 
             tds = tds[1:]
 
             by_base = tds[1].get_text().strip() == '-->'
             indx = tds[0].get_text()
-            change = Change(index=indx, date=date, discipline=tds[2].get_text().strip(), room=tds[4].get_text(),
+            change = Change(index=indx, date=date, discipline=tds[2].get_text().strip(), room=tds[3].get_text(),
                             by_base=by_base, index_is_time=is_time(indx))
 
             changes.get(current_group).append(change)
