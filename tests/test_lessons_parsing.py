@@ -33,19 +33,19 @@ async def test_lesson_parsing_successful() -> None:
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    now = datetime.now()
+    date = datetime(year=2025, month=10, day=2)
 
     with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
         try:
-            result = await parse_lessons(raspisanie_zanyatij(base=True), '121,123,132', now)
+            result = await parse_lessons(raspisanie_zanyatij(base=True), '121,123,132', date)
         except WebsiteUnavailableException:
             pytest.fail("Mocked website response is wrong")
 
     assert result is not None
     assert len(result) != 0
-    assert result[0].date == now
+    assert result[0].date == date
 
-    print("Parsed {} results per date {}".format(len(result), now.date()))
+    print("Parsed {} results per date {}".format(len(result), date.date()))
     for lesson in result:
         print(lesson.index, lesson.discipline)
 
