@@ -96,9 +96,14 @@ async def parse_changes(url: HttpUrl) -> Dict[str, list[Change]]:
 
             tds = tds[1:]
 
-            by_base = tds[1].get_text().strip() == '-->'
+            change_discipline = tds[2].get_text().strip()
+            by_base = change_discipline.lower() == 'по расписанию'
+
+            if change_discipline == '-->':
+                change_discipline = tds[1].get_text().strip()
+
             indx = tds[0].get_text()
-            change = Change(index=indx, date=date, discipline=tds[2].get_text().strip(), room=tds[3].get_text(),
+            change = Change(index=indx, date=date, discipline=change_discipline, room=tds[3].get_text(),
                             by_base=by_base, index_is_time=is_time(indx))
 
             changes.get(current_group).append(change)
