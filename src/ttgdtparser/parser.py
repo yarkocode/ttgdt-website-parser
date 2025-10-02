@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Dict
 
-import aiohttp
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
 from pydantic import HttpUrl
@@ -16,7 +15,7 @@ from .utils import build_date_from_humaned
 async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool = True):
     async with ClientSession() as session:
         async with session.post(str(url), data={'gr_no': gr_no}, ssl=secure) as response:
-            if response.status == 400:
+            if response.status != 200:
                 raise WebsiteUnavailableException(response.request_info)
 
             html_body = await response.text(encoding='utf-8')
@@ -34,6 +33,9 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
             tds = row.find_all('td')
 
             if len(tds) > 4:
+                if found:
+                    break
+
                 if day != tds[0].get_text().lower():
                     continue
                 else:
@@ -41,10 +43,10 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
 
                 tds = tds[1:]
 
-            if not found:
+            if not found or tds[1].get_text().strip() == "":
                 continue
 
-            if len(tds[0]) == 1:
+            if len(tds[0].get_text()) == 1:
                 indx = tds[0].get_text()
                 is_by_even = None
             else:
@@ -61,7 +63,7 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
 async def parse_changes(url: HttpUrl):
     async with ClientSession() as session:
         async with session.get(str(url)) as response:
-            if response.status == 400:
+            if response.status != 200:
                 raise WebsiteUnavailableException(response.request_info)
 
             html_body = await response.text(encoding='utf-8')
@@ -101,9 +103,9 @@ async def parse_changes(url: HttpUrl):
 
 
 async def parse_groups(url: HttpUrl):
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         async with session.get(str(url)) as response:
-            if response.status == 400:
+            if response.status != 200:
                 raise WebsiteUnavailableException(response.request_info)
 
             html_body = await response.text(encoding='utf-8')
