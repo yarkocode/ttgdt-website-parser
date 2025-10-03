@@ -5,9 +5,9 @@ from unittest import mock
 
 import pytest
 
-from ttgdtparser.accumulator import accumulate_lessons
-from ttgdtparser.constants import raspisanie_zanyatij, zam
-from ttgdtparser.parser import parse_lessons, parse_changes
+from src.ttgdtparser.accumulator import accumulate_lessons
+from src.ttgdtparser.constants import raspisanie_zanyatij, zam
+from src.ttgdtparser.parser import parse_lessons, parse_changes
 
 
 def file_exists(name: str) -> bool:
