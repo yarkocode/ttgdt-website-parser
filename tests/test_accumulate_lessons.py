@@ -11,7 +11,7 @@ from src.ttgdtparser.parser import parse_lessons, parse_changes
 
 
 def file_exists(name: str) -> bool:
-    return os.path.isfile("extra/" + name)
+    return os.path.isfile("tests/extra/" + name)
 
 
 def get_mock_session(mock_response) -> mock.Mock:
@@ -27,7 +27,7 @@ def mock_session_lessons() -> mock.Mock:
     if not file_exists("lessons.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
+    with open("tests/extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
         html = lessons_file.read()
 
     mock_response = mock.Mock()
@@ -44,7 +44,7 @@ def mock_session_changes(mock_session_lessons) -> mock.Mock:
     if not file_exists("changes.html"):
         pytest.skip("changes.html not found in extra/")
 
-    with open("extra/changes.html", mode='r', encoding='utf-8') as lessons_file:
+    with open("tests/extra/changes.html", mode='r', encoding='utf-8') as lessons_file:
         html = lessons_file.read()
 
     mock_response = mock.Mock()

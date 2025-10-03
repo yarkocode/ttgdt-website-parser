@@ -11,7 +11,7 @@ from src.ttgdtparser.parser import parse_changes
 
 
 def file_exists(name: str) -> bool:
-    return os.path.isfile("extra/" + name)
+    return os.path.isfile("tests/extra/" + name)
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_changes_parsing_successful() -> None:
     if not file_exists("changes.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/changes.html", mode='r', encoding='utf-8') as changes_file:
+    with open("tests/extra/changes.html", mode='r', encoding='utf-8') as changes_file:
         html = changes_file.read()
 
     mock_response = mock.Mock()

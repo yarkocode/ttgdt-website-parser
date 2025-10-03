@@ -11,7 +11,7 @@ from src.ttgdtparser.parser import parse_lessons
 
 
 def file_exists(name: str) -> bool:
-    return os.path.isfile("extra/" + name)
+    return os.path.isfile("tests/extra/" + name)
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_lesson_parsing_successful() -> None:
     if not file_exists("lessons.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
+    with open("tests/extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
         html = lessons_file.read()
 
     mock_response = mock.Mock()
@@ -93,7 +93,7 @@ async def test_lesson_parsing_with_wrong_date() -> None:
     if not file_exists("lessons.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
+    with open("tests/extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
         html = lessons_file.read()
 
     mock_response = mock.Mock()
