@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from ttgdtparser.constants import zam
-from ttgdtparser.exceptions import WebsiteUnavailableException
-from ttgdtparser.parser import parse_changes
+from src.ttgdtparser.constants import zam
+from src.ttgdtparser.exceptions import WebsiteUnavailableException
+from src.ttgdtparser.parser import parse_changes
 
 
 def file_exists(name: str) -> bool:
-    return os.path.isfile("extra/" + name)
+    return os.path.isfile("tests/extra/" + name)
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_changes_parsing_successful() -> None:
     if not file_exists("changes.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/changes.html", mode='r', encoding='utf-8') as changes_file:
+    with open("tests/extra/changes.html", mode='r', encoding='utf-8') as changes_file:
         html = changes_file.read()
 
     mock_response = mock.Mock()
@@ -33,7 +33,7 @@ async def test_changes_parsing_successful() -> None:
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         try:
             result = await parse_changes(zam(base=True))
         except WebsiteUnavailableException:
@@ -63,11 +63,11 @@ async def test_lesson_parsing_webpage_not_found() -> None:
     mock_response.__aexit__ = mock.AsyncMock(return_value=None)
 
     mock_session = mock.Mock()
-    mock_session.post.return_value = mock_response
+    mock_session.get.return_value = mock_response
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         with pytest.raises(WebsiteUnavailableException) as e:
             await parse_changes(zam(base=True))
 
@@ -82,11 +82,11 @@ async def test_lesson_parsing_website_unavailable() -> None:
     mock_response.__aexit__ = mock.AsyncMock(return_value=None)
 
     mock_session = mock.Mock()
-    mock_session.post.return_value = mock_response
+    mock_session.get.return_value = mock_response
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         with pytest.raises(WebsiteUnavailableException) as e:
             await parse_changes(zam(base=True))
 

@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from ttgdtparser.constants import raspisanie_zanyatij
-from ttgdtparser.exceptions import WebsiteUnavailableException, NoTimetableAvailablePerDate
-from ttgdtparser.parser import parse_lessons
+from src.ttgdtparser.constants import raspisanie_zanyatij
+from src.ttgdtparser.exceptions import WebsiteUnavailableException, NoTimetableAvailablePerDate
+from src.ttgdtparser.parser import parse_lessons
 
 
 def file_exists(name: str) -> bool:
-    return os.path.isfile("extra/" + name)
+    return os.path.isfile("tests/extra/" + name)
 
 
 @pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_lesson_parsing_successful() -> None:
     if not file_exists("lessons.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
+    with open("tests/extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
         html = lessons_file.read()
 
     mock_response = mock.Mock()
@@ -35,7 +35,7 @@ async def test_lesson_parsing_successful() -> None:
 
     date = datetime(year=2025, month=10, day=2)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         try:
             result = await parse_lessons(raspisanie_zanyatij(base=True), '121,123,132', date)
         except WebsiteUnavailableException:
@@ -62,7 +62,7 @@ async def test_lesson_parsing_webpage_not_found() -> None:
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         with pytest.raises(WebsiteUnavailableException) as e:
             await parse_lessons(raspisanie_zanyatij(base=True), '121,123,132', datetime.now())
 
@@ -81,7 +81,7 @@ async def test_lesson_parsing_website_unavailable() -> None:
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         with pytest.raises(WebsiteUnavailableException) as e:
             await parse_lessons(raspisanie_zanyatij(base=True), '121,123,132', datetime.now())
 
@@ -93,7 +93,7 @@ async def test_lesson_parsing_with_wrong_date() -> None:
     if not file_exists("lessons.html"):
         pytest.skip("lessons.html not found in extra/")
 
-    with open("extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
+    with open("tests/extra/lessons.html", mode='r', encoding='utf-8') as lessons_file:
         html = lessons_file.read()
 
     mock_response = mock.Mock()
@@ -111,7 +111,7 @@ async def test_lesson_parsing_with_wrong_date() -> None:
     sunday_delta = 6 - now.weekday() % 7
     now += timedelta(days=sunday_delta)
 
-    with mock.patch('ttgdtparser.parser.ClientSession', return_value=mock_session):
+    with mock.patch('src.ttgdtparser.parser.ClientSession', return_value=mock_session):
         with pytest.raises(NoTimetableAvailablePerDate):
             try:
                 await parse_lessons(raspisanie_zanyatij(base=True), '121,123,132', now)
