@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 
 class Lesson(BaseModel):
+    """ Parser lesson model """
+
     date: datetime
     index: str
     discipline: str
@@ -19,6 +21,8 @@ class Lesson(BaseModel):
 
 
 class Change(Lesson, BaseModel):
+    """ Parser change model """
+
     discipline: Optional[str] = None
     by_base: Optional[bool] = False
     index_is_time: bool = False
@@ -33,6 +37,8 @@ class Change(Lesson, BaseModel):
 
 
 class Group(BaseModel):
+    """ Parser group model """
+
     full_number: str
 
     @property

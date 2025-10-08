@@ -12,7 +12,29 @@ from .types import Lesson, Change, Group
 from .utils import build_date_from_humaned
 
 
-async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool = True):
+async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool = True) -> list[Lesson]:
+    """
+    Parse lessons from common table
+    :param url: endpoint with lessons table
+    :param gr_no: number of the group
+    :param date: date for which lessons should be parsed
+    :param secure: use ssl checking
+
+    :raises WebsiteUnavailableException: when the endpoint responds with a status non-eq. 200
+    :raises NoTimetableAvailablePerDate: when the selected sunday
+
+    :return: list of lessons by the date
+
+    Usage:
+
+    from ttgdtparser import parser, constants
+    import datetime
+
+    gr_no = "711,722"
+    now = datetime.datetime.now()
+    lessons = await parser.parse_lessons(constants.raspisanie_zanyatij(), gr_no, now)
+    ...
+    """
     async with ClientSession() as session:
         async with session.post(str(url), data={'gr_no': gr_no}, ssl=secure) as response:
             if response.status != 200:
@@ -24,7 +46,7 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
         table = bs.select_one('table.table.table-striped.table-bordered')
         rows = table.find_all('tr')[1:]
 
-        if date.weekday() == 6:
+        if date.weekday() > len(day_names) - 2:
             raise NoTimetableAvailablePerDate(response.request_info, "Requested date has not available lesson table")
 
         day = day_names[date.weekday()]
@@ -63,9 +85,25 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
         return lessons
 
 
-async def parse_changes(url: HttpUrl) -> Dict[str, list[Change]]:
+async def parse_changes(url: HttpUrl, secure: bool = True) -> Dict[str, list[Change]]:
+    """
+    Parse changes
+    :param secure: use ssl checking
+    :param url: endpoint with changes table
+
+    :raises WebsiteUnavailableException: when the endpoint responds with a status non-eq. 200
+
+    :return: changes dict, group number as key
+
+    Usage:
+
+    from ttgdtparser import parser, constants
+
+    changes = await parser.parse_changes(constants.zam())
+    ...
+    """
     async with ClientSession() as session:
-        async with session.get(str(url)) as response:
+        async with session.get(str(url), ssl=secure) as response:
             if response.status != 200:
                 raise WebsiteUnavailableException(response.request_info)
 
@@ -76,6 +114,7 @@ async def parse_changes(url: HttpUrl) -> Dict[str, list[Change]]:
 
     changes: Dict[str, list["Change"]] = {}
 
+    # get two tables and collect changes from it
     for table in tables:
         date = await build_date_from_humaned(table.find_previous('h1').get_text())
 
@@ -111,9 +150,25 @@ async def parse_changes(url: HttpUrl) -> Dict[str, list[Change]]:
     return changes
 
 
-async def parse_groups(url: HttpUrl):
+async def parse_groups(url: HttpUrl, secure: bool = True) -> list[Group]:
+    """
+    Parse groups
+    :param url: endpoint with groups select
+    :param secure: use ssl checking
+
+    :raises WebsiteUnavailableException: when the endpoint responds with a status non-eq. 200
+
+    :return: list of group
+
+    Usage:
+
+    from ttgdtparser import parser, constants
+
+    groups = await parser.parse_groups(constants.groups())
+    ...
+    """
     async with ClientSession() as session:
-        async with session.get(str(url)) as response:
+        async with session.get(str(url), ssl=secure) as response:
             if response.status != 200:
                 raise WebsiteUnavailableException(response.request_info)
 
