@@ -1,53 +1,75 @@
+from abc import abstractmethod, ABC
 from datetime import datetime
-from typing import Dict
+from typing import Any, Awaitable, Optional, List, Dict
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientResponse, ClientMiddlewareType
 from bs4 import BeautifulSoup
-from pydantic import HttpUrl
+from pydantic import validate_call, HttpUrl
 
-from .constants import day_names
-from .exceptions import WebsiteUnavailableException, NoTimetableAvailablePerDate
-from .helpers import normilize_group_number, is_time
-from .types import Lesson, Change, Group
-from .utils import build_date_from_humaned
+from ttgdtparser.constants import day_names, groups, raspisanie_zanyatij, zam
+from ttgdtparser.middleware import logging_middleware, validate_response_middleware
+from ttgdtparser.types import Lesson, Change, Group
+from ttgdtparser.utils import build_date_from_humaned, normilize_group_number
 
 
-async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool = True) -> list[Lesson]:
-    """
-    Parse lessons from common table
-    :param url: endpoint with lessons table
-    :param gr_no: number of the group
-    :param date: date for which lessons should be parsed
-    :param secure: use ssl checking
+class BaseTtgdtWebsiteParser(ABC):
+    _session: Optional[ClientSession] = None
+    middlewares: List[ClientMiddlewareType] = [
+        logging_middleware,
+        validate_response_middleware
+    ]
 
-    :raises WebsiteUnavailableException: when the endpoint responds with a status non-eq. 200
-    :raises NoTimetableAvailablePerDate: when the selected sunday
+    def __init__(self, url: str, *middlewares):
+        self.middlewares.extend(middlewares)
+        self._url = url
 
-    :return: list of lessons by the date
+    @property
+    def url(self) -> str:
+        return self._url
 
-    Usage:
+    @url.setter
+    def url(self, url: str):
+        self._url = url
 
-    from ttgdtparser import parser, constants
-    import datetime
+    @abstractmethod
+    def parse(self, **kwargs) -> Awaitable[Any] | Any:
+        raise NotImplementedError("Implement method 'parse' to fully close parser tasks")
 
-    gr_no = "711,722"
-    now = datetime.datetime.now()
-    lessons = await parser.parse_lessons(constants.raspisanie_zanyatij(), gr_no, now)
-    ...
-    """
-    async with ClientSession() as session:
-        async with session.post(str(url), data={'gr_no': gr_no}, ssl=secure) as response:
-            if response.status != 200:
-                raise WebsiteUnavailableException(response.request_info)
+    def initbs(self, response_body: str):
+        return BeautifulSoup(response_body, 'lxml')
 
-            html_body = await response.text(encoding='utf-8')
+    def validate_response(self, response: ClientResponse):
+        pass
 
-        bs = BeautifulSoup(html_body, 'lxml')
+    async def _ensure_session(self) -> ClientSession:
+        if self._session is None:
+            self._session = ClientSession(middlewares=self.middlewares)
+        return self._session
+
+    async def __aenter__(self):
+        await self._ensure_session()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._session.close()
+
+
+class LessonTableParser(BaseTtgdtWebsiteParser):
+    @validate_call
+    async def parse(self, group: str, date: Optional[datetime] = None):
+        if date is None:
+            date = datetime.now()
+
+        session = await self._ensure_session()
+        async with session.post(self.url, data={'gr_no': group}) as resp:
+            html = await resp.text()
+        bs = self.initbs(html)
+
         table = bs.select_one('table.table.table-striped.table-bordered')
         rows = table.find_all('tr')[1:]
 
         if date.weekday() > len(day_names) - 2:
-            raise NoTimetableAvailablePerDate(response.request_info, "Requested date has not available lesson table")
+            return []
 
         day = day_names[date.weekday()]
         found = False
@@ -78,108 +100,157 @@ async def parse_lessons(url: HttpUrl, gr_no: str, date: datetime, secure: bool =
                 indx = tds[0].get_text()[0]
                 is_by_even = tds[0].get_text()[1].lower() == 'ч'
 
-            lesson = Lesson(date=date, index=indx, by_even=is_by_even, discipline=tds[1].get_text(),
+            lesson = Lesson(index=indx, by_even_weeks=is_by_even, discipline=tds[1].get_text(),
                             teacher=tds[2].get_text(), room=tds[3].get_text())
             lessons.append(lesson)
 
         return lessons
 
 
-async def parse_changes(url: HttpUrl, secure: bool = True) -> Dict[str, list[Change]]:
-    """
-    Parse changes
-    :param secure: use ssl checking
-    :param url: endpoint with changes table
+class ChangesTableParser(BaseTtgdtWebsiteParser):
+    async def parse(self, group: str = None):
+        session = await self._ensure_session()
+        async with session.get(self.url) as resp:
+            html = await resp.text()
+        bs = self.initbs(html)
+        check_grp = group is not None
 
-    :raises WebsiteUnavailableException: when the endpoint responds with a status non-eq. 200
+        tables = bs.select("table")
 
-    :return: changes dict, group number as key
+        changes: Dict[str, list["Change"]] = {}
 
-    Usage:
+        # get two tables and collect changes from it
+        for table in tables:
+            date = await build_date_from_humaned(table.find_previous('h1').get_text())
 
-    from ttgdtparser import parser, constants
+            rows = table.find_all('tr')[1:]
+            current_group = None
 
-    changes = await parser.parse_changes(constants.zam())
-    ...
-    """
-    async with ClientSession() as session:
-        async with session.get(str(url), ssl=secure) as response:
-            if response.status != 200:
-                raise WebsiteUnavailableException(response.request_info)
+            for row in rows:
+                tds = row.find_all('td')
 
-            html_body = await response.text(encoding='utf-8')
+                if all(td.get_text() == "" for td in tds):
+                    break
 
-    bs = BeautifulSoup(html_body, "lxml")
-    tables = bs.select("table")
+                grp = tds[0].get_text().strip()
 
-    changes: Dict[str, list["Change"]] = {}
+                if grp != "":
+                    if check_grp and group != grp:
+                        continue
 
-    # get two tables and collect changes from it
-    for table in tables:
-        date = await build_date_from_humaned(table.find_previous('h1').get_text())
+                    current_group = normilize_group_number(number=tds[0].get_text())
+                    changes[current_group] = []
 
-        rows = table.find_all('tr')[1:]
-        current_group = None
+                tds = tds[1:]
 
-        for row in rows:
-            tds = row.find_all('td')
+                change_discipline = tds[2].get_text().strip()
+                by_base = change_discipline.lower() == 'по расписанию'
 
-            if all(td.get_text() == "" for td in tds):
-                break
+                if change_discipline == '-->':
+                    change_discipline = tds[1].get_text().strip()
 
-            group = tds[0].get_text().strip()
+                indx = tds[0].get_text()
+                change = Change(index=indx, date=date, discipline=change_discipline, room=tds[3].get_text(),
+                                by_base=by_base)
 
-            if group != "":
-                current_group = normilize_group_number(number=tds[0].get_text())
-                changes[current_group] = []
+                changes.get(current_group).append(change)
 
-            tds = tds[1:]
-
-            change_discipline = tds[2].get_text().strip()
-            by_base = change_discipline.lower() == 'по расписанию'
-
-            if change_discipline == '-->':
-                change_discipline = tds[1].get_text().strip()
-
-            indx = tds[0].get_text()
-            change = Change(index=indx, date=date, discipline=change_discipline, room=tds[3].get_text(),
-                            by_base=by_base, index_is_time=is_time(indx))
-
-            changes.get(current_group).append(change)
-
-    return changes
+        return changes
 
 
-async def parse_groups(url: HttpUrl, secure: bool = True) -> list[Group]:
-    """
-    Parse groups
-    :param url: endpoint with groups select
-    :param secure: use ssl checking
+class GroupsParser(BaseTtgdtWebsiteParser):
+    async def parse(self):
+        session = await self._ensure_session()
+        async with session.get(self.url) as resp:
+            html = await resp.text()
+        bs = self.initbs(html)
 
-    :raises WebsiteUnavailableException: when the endpoint responds with a status non-eq. 200
-
-    :return: list of group
-
-    Usage:
-
-    from ttgdtparser import parser, constants
-
-    groups = await parser.parse_groups(constants.groups())
-    ...
-    """
-    async with ClientSession() as session:
-        async with session.get(str(url), ssl=secure) as response:
-            if response.status != 200:
-                raise WebsiteUnavailableException(response.request_info)
-
-            html_body = await response.text(encoding='utf-8')
-
-        bs = BeautifulSoup(html_body, 'lxml')
         groups_select = bs.find("select", {"id": "gr_no"})
 
         groups = []
         for select_option in groups_select.find_all("option")[1:]:
             option_value = select_option.attrs.get("value")
-            groups.append(Group(full_number=option_value))
+            groups.append(Group(number=option_value))
 
         return groups
+
+    async def is_alive(self, group: str):
+        grps = await self.parse()
+        grps = [grp.number for grp in grps]
+        return group in grps
+
+
+async def parse_lessons(group: str, date: Optional[datetime] = None, url: HttpUrl = None) -> list[Lesson]:
+    """
+    Parse lessons from website
+    :param group: group to get lessons
+    :param date: date to get lessons (by default `datetime.now()`)
+    :param url: url to get lessons (by default `ttgdtparser.constants.raspisanie_zanyatij()`)
+    :return: list of lessons for group
+
+    Usage:
+
+        from ttgdtparser import parser, constants
+
+        changes = await parser.parse_lessons(constants.raspisanie_zanyatij())
+    """
+    url = raspisanie_zanyatij() if url is None else url
+
+    async with LessonTableParser(url) as parser:
+        return await parser.parse(group=group, date=date)
+
+
+async def parse_changes(group: str = None, url: HttpUrl = None) -> Dict[str, List[Change]]:
+    """
+    Parse changes from website
+    :param group: group to get changes (optional)
+    :param url: url to get changes (by default `ttgdtparser.constants.zam()`)
+    :return: list of changes for all groups or for group if got
+
+    Usage:
+
+        from ttgdtparser import parser, constants
+
+        changes = await parser.parse_changes(constants.zam())
+    """
+    url = zam() if url is None else url
+
+    async with ChangesTableParser(url) as parser:
+        return await parser.parse(group=group)
+
+
+async def parse_groups(url: HttpUrl = None) -> List[Group]:
+    """
+    Parse from website select groups as option
+    :param url: url to get select options with groups (by default `ttgdtparser.constants.groups()`)
+    :return: list of groups
+
+    Usage:
+
+        from ttgdtparser import parser, constants
+
+        groups = await parser.parse_groups(constants.groups())
+    """
+    url = groups() if url is None else url
+
+    async with GroupsParser(url) as parser:
+        return await parser.parse()
+
+
+async def check_group_is_alive(group: str, url: HttpUrl = None) -> bool:
+    """
+    Check website select has a group number as option
+    :param group: group to check
+    :param url: url to get select options with groups (by default `ttgdtparser.constants.groups()`)
+    :return: if group is presents by website return True
+
+    Usage:
+
+        from ttgdtparser import parser, constants
+
+        is_alive = await parser.check_group_is_alive('711,722', constants.groups())
+    """
+    url = groups() if url is None else url
+
+    async with GroupsParser(url) as parser:
+        return await parser.is_alive(group)

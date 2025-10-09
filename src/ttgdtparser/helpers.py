@@ -1,27 +1,14 @@
-from datetime import datetime
-
-normilize_group_number = lambda number: number.strip().replace('.', ',')
-normilize_group_number.__doc__ = """
-Replace unsupported chars from string group number in changes
-:param number: group number
-:type number: str
-:return: normalized group number string
-"""
-
-
-def is_time(maybe_time: str) -> bool:
+def is_time(time_repr: str):
     """
     Check string contains a time
-    :param maybe_time: estimated time in the string
+    :param time_repr: estimated time in the string
     :return: True if contains a time
     """
-    if len(maybe_time) > 4 or \
-            len(maybe_time.split(',')) > 2 or \
-            len(maybe_time.split('.')) < 2:
-        return False
+    if time_repr is not None:
+        if len(time_repr) == 1 or len(time_repr) > 5 or time_repr.count(':') > 1:
+            return False
 
-    try:
-        datetime.strptime(maybe_time, '%H.%M')
-        return True
-    except ValueError:
-        return False
+        parts = time_repr.split(':')
+        return len(parts[1]) == 2
+
+    return False
