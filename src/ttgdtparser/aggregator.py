@@ -1,3 +1,4 @@
+from datetime import time
 from typing import List, Tuple
 
 from .types import Lesson, Change, BaseLesson, LessonMatch
@@ -9,7 +10,7 @@ class Aggregator:
 
         # aggregate lessons and changes
         for change in changes:
-            if change.index_is_time:
+            if isinstance(change.index, time):
                 result.append(change)
                 continue
 
