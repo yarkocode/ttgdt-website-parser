@@ -1,43 +1,74 @@
 from datetime import time
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
+from .exc.aggregator import LessonRequiredByIndexForChangeException
 from .types import Lesson, Change, BaseLesson, LessonMatch
 
 
 class Aggregator:
     def accumulate(self, lessons: List[Lesson], changes: List[Change]) -> List[BaseLesson]:
-        result: List[BaseLesson] = []
+        lessons_map: dict[int, Lesson] = {l.index: l for l in lessons}
+        result_map: dict[int, Union[Lesson, Change]] = {}
+        timed_changes: list[Change] = [ch for ch in changes if isinstance(ch.index, time)]
 
-        # aggregate lessons and changes
         for change in changes:
-            if isinstance(change.index, time):
-                result.append(change)
+            if isinstance(change.index, list):
+                for idx in change.index:
+                    original_lesson = lessons_map.get(idx)
+
+                    if original_lesson is None:
+                        if change.by_base:
+                            raise LessonRequiredByIndexForChangeException(
+                                "Lesson by that index could not found to place the change", change.index, change)
+                        result_map[idx] = change
+                        continue
+
+                    if change.by_base:
+                        result_map[idx] = original_lesson
+                        continue
+
+                    rchange = change.model_copy()
+                    rchange.index = idx
+                    rchange.original = original_lesson
+                    result_map[idx] = rchange
+
                 continue
 
-            if change.discipline.lower() == 'нет':
-                continue
+            if isinstance(change.index, int):
+                original_lesson = lessons_map.get(change.index)
 
-            selected_indexes = list(filter(lambda l: l.index in change.subindexation, lessons))
+                if original_lesson is None:
+                    if change.by_base:
+                        raise LessonRequiredByIndexForChangeException(
+                            "Lesson by that index could not found to place the change", change.index, change)
+                    result_map[change.index] = change
+                    continue
 
-            if len(selected_indexes) == 0:
-                result.append(change)
-                continue
+                rchange = change.model_copy()
+                rchange.original = original_lesson
 
-            for lesson in selected_indexes:
                 if change.by_base:
-                    change.original = lesson
-                    change.discipline = lesson.discipline
+                    rchange.discipline = lessons_map.get(change.index).discipline
 
-                result.append(change)
+                result_map[rchange.index] = rchange
 
-        # fill with lessons from common table by unfilled indexes
-        unfilled = list(filter(lambda l: l.index not in [l.index for l in changes], lessons))
-        result.extend(unfilled)
+                continue
 
-        return result
+        finalres = list(result_map.values())
+        finalres.extend(timed_changes)
+        delta = lessons_map.keys() - result_map.keys()
+
+        if len(delta) > 0:
+            for idx in delta:
+                finalres.append(lessons_map.get(idx))
+
+        return finalres
 
     def find_match(self, lessons_1: List[BaseLesson], lessons_2: List[BaseLesson]) -> List[LessonMatch]:
         matches: List[Tuple[BaseLesson, BaseLesson]] = []
+
+        if len(lessons_1) == 0 or len(lessons_2) == 0:
+            return matches
 
         for lesson_1 in lessons_1:
             for lesson_2 in lessons_2:
@@ -47,8 +78,9 @@ class Aggregator:
         return matches
 
     def _match(self, lesson_1: BaseLesson, lesson_2: BaseLesson):
-        if lesson_1.discipline == lesson_2.discipline or lesson_1.room == lesson_2.room:
-            return True
+        if lesson_1.discipline == lesson_2.discipline:
+            if (lesson_1.room == "" or lesson_2.room == "") or lesson_1.room == lesson_2.room:
+                return True
 
         return False
 

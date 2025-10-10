@@ -1,68 +1,69 @@
-from abc import ABC
 from datetime import time, datetime
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, Union
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, ConfigDict, field_validator
 
 from ttgdtparser.exc.parser import LessonIndexCantBeCorrectlyParsedException
 from ttgdtparser.helpers import is_time
 
 
-class BaseLesson(BaseModel, ABC):
-    index: time | list[int] | str
+class BaseLesson(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    date: datetime
+    index: list[int] | int | time | str
     discipline: str
-    teacher: Optional[str]
-    room: Optional[str]
+    teacher: Optional[str] = None
+    room: Optional[str] = None
 
-    def __init__(self, /, index: str, **data: Any) -> None:
-        super().__init__(**data, index=index)
-        self._normalize_index()
+    @field_validator("index", mode="before")
+    @classmethod
+    def normalize_index(cls, index: str | int) -> int | list[int] | time:
+        if isinstance(index, int) or isinstance(index, list) or isinstance(index, time):
+            return index
 
-    def _normalize_index(self):
-        if not isinstance(self.index, str):
-            return
+        if not isinstance(index, str):
+            raise ValidationError("Index must be str or int")
+
+        cleaned_index = cls._remove_non_numeric(index)
+
+        translator = str.maketrans(r".,", ':' * 2)
+        cleaned_index = cleaned_index.translate(translator)
 
         try:
-            cleaned_index = self._remove_non_numeric(self.index)
-
-            translator = str.maketrans(r".,", ':' * 2)
-            cleaned_index = cleaned_index.translate(translator)
-
             if cleaned_index.count(':') == 0:
-                return
+                return int(cleaned_index)
 
             if is_time(cleaned_index):
-                self.index = self._parse_as_time(cleaned_index)
-                return
+                return cls._parse_as_time(cleaned_index)
 
-            self.index = self._parse_as_number_list(cleaned_index)
+            return cls._parse_as_number_list(cleaned_index)
         except (ValueError, ValidationError):
-            raise LessonIndexCantBeCorrectlyParsedException()
+            raise LessonIndexCantBeCorrectlyParsedException(
+                f"Lesson index has invalid format to parse: {cleaned_index}")
 
-    def _remove_non_numeric(self, index: str) -> str:
+    @staticmethod
+    def _remove_non_numeric(index: str) -> str:
         import string
         allowed_chars = string.digits + '.,'
         return ''.join(char for char in index if char in allowed_chars)
 
-    def _parse_as_time(self, time_repr: str) -> time:
+    @staticmethod
+    def _parse_as_time(time_repr: str) -> time:
         hour, minutes = list(map(int, time_repr.split(':')))
         return time(hour=hour, minute=minutes)
 
-    def _parse_as_number_list(self, index: str) -> list[int]:
+    @staticmethod
+    def _parse_as_number_list(index: str) -> list[int]:
         return list(map(int, index.split(':')))
 
 
-class Lesson(BaseModel, BaseLesson):
+class Lesson(BaseLesson, BaseModel):
     by_even_weeks: Optional[bool] = False
 
-    @property
-    def has_difference(self):
-        return self.change is not None
 
-
-class Change(BaseModel, BaseLesson):
-    date: datetime
-    original: Lesson
+class Change(BaseLesson, BaseModel):
+    original: Optional[Lesson] = None
     by_base: Optional[bool] = False
 
 

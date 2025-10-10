@@ -101,7 +101,7 @@ class LessonTableParser(BaseTtgdtWebsiteParser):
                 is_by_even = tds[0].get_text()[1].lower() == 'ч'
 
             lesson = Lesson(index=indx, by_even_weeks=is_by_even, discipline=tds[1].get_text(),
-                            teacher=tds[2].get_text(), room=tds[3].get_text())
+                            teacher=tds[2].get_text(), room=tds[3].get_text(), date=date)
             lessons.append(lesson)
 
         return lessons
