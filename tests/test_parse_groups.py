@@ -11,7 +11,7 @@ from src.ttgdtparser.parser import parse_groups
 from src.ttgdtparser.types import Group
 
 def file_exists(name: str) -> bool:
-    return os.path.isfile("tests/extra/" + name)
+    return os.path.isfile("tests/mock_website/" + name)
 
 @pytest.fixture
 def mock_session_factory():
@@ -33,9 +33,9 @@ def mock_session_factory():
 @pytest.mark.asyncio
 async def test_parse_groups_successful(mock_session_factory) -> None:
     if not file_exists('groups.html'):
-        pytest.skip("groups.html not found in extra/")
+        pytest.skip("groups.html not found in mock_website/")
     
-    with open("tests/extra/groups.html", mode='r', encoding='utf-8') as groups_file:
+    with open("tests/mock_website/groups.html", mode='r', encoding='utf-8') as groups_file:
         html = groups_file.read()
 
     mock_session = await mock_session_factory(200, html)
