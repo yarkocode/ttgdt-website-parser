@@ -4,9 +4,9 @@ from typing import List
 
 import pytest
 
-from ttgdtparser.aggregator import Aggregator
-from ttgdtparser.exc.aggregator import LessonRequiredByIndexForChangeException
-from ttgdtparser.types import Change, Lesson, BaseLesson, LessonMatch
+from src.ttgdtparser.aggregator import Aggregator
+from src.ttgdtparser.exc.aggregator import LessonRequiredByIndexForChangeException
+from src.ttgdtparser.types import Change, Lesson, BaseLesson, LessonMatch
 
 
 class TestAggregator(ABC):

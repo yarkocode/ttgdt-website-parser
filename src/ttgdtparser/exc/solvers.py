@@ -1,6 +1,6 @@
 from aiohttp import ClientResponse
 
-from ttgdtparser.exc.http import (
+from ..exc.http import (
     HttpRequestException,
     WebsiteDownException,
     WebsiteDomainMovedException,

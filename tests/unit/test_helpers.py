@@ -1,6 +1,6 @@
 import pytest
 
-from ttgdtparser.helpers import is_time
+from src.ttgdtparser.helpers import is_time
 
 
 class TestIsTimeHelper:

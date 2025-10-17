@@ -6,10 +6,10 @@ from aiohttp import ClientSession, ClientResponse, ClientMiddlewareType
 from bs4 import BeautifulSoup
 from pydantic import validate_call, HttpUrl
 
-from ttgdtparser.constants import day_names, groups, raspisanie_zanyatij, zam
-from ttgdtparser.middleware import logging_middleware, validate_response_middleware
-from ttgdtparser.types import Lesson, Change, Group
-from ttgdtparser.utils import build_date_from_humaned, normilize_group_number
+from .constants import day_names, groups, raspisanie_zanyatij, zam
+from .middleware import logging_middleware, validate_response_middleware
+from .types import Lesson, Change, Group
+from .utils import build_date_from_humaned, normilize_group_number
 
 
 class BaseTtgdtWebsiteParser(ABC):
@@ -19,7 +19,8 @@ class BaseTtgdtWebsiteParser(ABC):
         validate_response_middleware
     ]
 
-    def __init__(self, url: str, *middlewares):
+    def __init__(self, url: str, session: Optional[ClientSession] = None, *middlewares):
+        self._session = session
         self.middlewares.extend(middlewares)
         self._url = url
 
@@ -108,7 +109,7 @@ class LessonTableParser(BaseTtgdtWebsiteParser):
 
 
 class ChangesTableParser(BaseTtgdtWebsiteParser):
-    async def parse(self, group: str = None):
+    async def parse(self, group: str = None) -> Dict[str, list["Change"]]:
         session = await self._ensure_session()
         async with session.get(self.url) as resp:
             html = await resp.text()
@@ -139,7 +140,7 @@ class ChangesTableParser(BaseTtgdtWebsiteParser):
                         continue
 
                     current_group = normilize_group_number(number=tds[0].get_text())
-                    changes[current_group] = []
+                    changes.setdefault(current_group, [])
 
                 tds = tds[1:]
 
@@ -153,7 +154,8 @@ class ChangesTableParser(BaseTtgdtWebsiteParser):
                 change = Change(index=indx, date=date, discipline=change_discipline, room=tds[3].get_text(),
                                 by_base=by_base)
 
-                changes.get(current_group).append(change)
+                if current_group: 
+                    changes.get(current_group).append(change)
 
         return changes
 

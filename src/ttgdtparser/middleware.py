@@ -3,8 +3,8 @@ import time
 
 from aiohttp import ClientRequest, ClientHandlerType, ClientResponse, ClientSSLError, ClientError
 
-from ttgdtparser.exc.http import HttpRequestException
-from ttgdtparser.exc.solvers import raise_http_exception
+from .exc.http import HttpRequestException
+from .exc.solvers import raise_http_exception
 
 
 async def logging_middleware(request: ClientRequest, handler: ClientHandlerType):
