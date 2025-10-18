@@ -137,6 +137,7 @@ class ChangesTableParser(BaseTtgdtWebsiteParser):
 
                 if grp != "":
                     if check_grp and group != grp:
+                        current_group = None
                         continue
 
                     current_group = normilize_group_number(number=tds[0].get_text())
