@@ -34,6 +34,7 @@ _website_base_url = "{protocol}://www.ttgdt.stu.ru"
 _raspisanie_zanyatij = "/students/raspisanie-zanyatij"
 _zam = "/students/zam"
 _groups = "/students/raspisanie-zanyatij-ochnyh-otdelenij"
+_addictions = "/students/raspisanie-dopolnitelnyh-zanyatij"
 
 base_url = _website_base_url.format(protocol="https")
 alternative_base_url = _website_base_url.format(protocol="http")
@@ -47,3 +48,4 @@ def _resolve_url(base: bool, endpoint: str) -> str:
 raspisanie_zanyatij = lambda base=True: _resolve_url(base, _raspisanie_zanyatij)
 zam = lambda base=True: _resolve_url(base, _zam)
 groups = lambda base=True: _resolve_url(base, _groups)
+addictions = lambda base=True: _resolve_url(base, _addictions)

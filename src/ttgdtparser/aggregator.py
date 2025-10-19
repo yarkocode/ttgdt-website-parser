@@ -4,7 +4,7 @@ from typing import List, Tuple, Union
 from .exc.aggregator import LessonRequiredByIndexForChangeException
 from .types import Lesson, Change, BaseLesson, LessonMatch
 
-
+ 
 class Aggregator:
     def accumulate(self, lessons: List[Lesson], changes: List[Change]) -> List[BaseLesson]:
         lessons_map: dict[int, Lesson] = {l.index: l for l in lessons}
