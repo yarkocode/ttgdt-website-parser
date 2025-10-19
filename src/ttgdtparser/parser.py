@@ -155,7 +155,7 @@ class ChangesTableParser(BaseTtgdtWebsiteParser):
                 change = Change(index=indx, date=date, discipline=change_discipline, room=tds[3].get_text(),
                                 by_base=by_base)
 
-                if current_group: 
+                if current_group:
                     changes.get(current_group).append(change)
 
         return changes
@@ -182,14 +182,15 @@ class GroupsParser(BaseTtgdtWebsiteParser):
         grps = [grp.number for grp in grps]
         return group in grps
 
+
 class AddictionsParser(BaseTtgdtWebsiteParser):
     async def parse(self, date: Optional[datetime] = None):
         if date is None:
             date = datetime.now()
-        
+
         if date.weekday() > len(day_names) - 2:
             return {}
-        
+
         session = await self._ensure_session()
         async with session.get(self.url) as resp:
             html = await resp.text()
@@ -224,23 +225,23 @@ class AddictionsParser(BaseTtgdtWebsiteParser):
 
                     if disciplines == ['']: continue
                     if len(disciplines) == 1:
-                        lesson = Lesson(index=index, by_even_weeks=None, discipline=disciplines[0], teacher=teacher, room=room, date=date)
+                        lesson = Lesson(index=index, by_even_weeks=None, discipline=disciplines[0], teacher=teacher,
+                                        room=room, date=date)
                         addictions[current_group].append(lesson)
                         continue
-                    
+
                     for part in disciplines:
                         if "нечетная неделя" in part.lower():
                             next_is_even = False
-                            continue 
+                            continue
                         elif "четная неделя" in part.lower():
                             next_is_even = True
                             continue
-                        
-                        lesson = Lesson(index=index, by_even_weeks=next_is_even, discipline=part, teacher=teacher, room=room, date=date)
+
+                        lesson = Lesson(index=index, by_even_weeks=next_is_even, discipline=part, teacher=teacher,
+                                        room=room, date=date)
                         addictions[current_group].append(lesson)
                         next_is_even = None
-                
-                
 
         return addictions
 
@@ -262,6 +263,7 @@ async def parse_addictions(date: Optional[datetime] = None, url: HttpUrl = None)
 
     async with AddictionsParser(url) as parser:
         return await parser.parse(date=date)
+
 
 async def parse_lessons(group: str, date: Optional[datetime] = None, url: HttpUrl = None) -> list[Lesson]:
     """
