@@ -6,10 +6,10 @@ from aiohttp import ClientSession, ClientResponse, ClientMiddlewareType
 from bs4 import BeautifulSoup
 from pydantic import validate_call, HttpUrl
 
-from ttgdtparser.constants import day_names, groups, raspisanie_zanyatij, zam
-from ttgdtparser.middleware import logging_middleware, validate_response_middleware
-from ttgdtparser.types import Lesson, Change, Group
-from ttgdtparser.utils import build_date_from_humaned, normilize_group_number
+from .constants import day_names, groups, raspisanie_zanyatij, zam, addictions
+from .middleware import logging_middleware, validate_response_middleware
+from .types import Lesson, Change, Group
+from .utils import build_date_from_humaned, normilize_group_number
 
 
 class BaseTtgdtWebsiteParser(ABC):
@@ -19,7 +19,8 @@ class BaseTtgdtWebsiteParser(ABC):
         validate_response_middleware
     ]
 
-    def __init__(self, url: str, *middlewares):
+    def __init__(self, url: str, session: Optional[ClientSession] = None, *middlewares):
+        self._session = session
         self.middlewares.extend(middlewares)
         self._url = url
 
@@ -108,7 +109,7 @@ class LessonTableParser(BaseTtgdtWebsiteParser):
 
 
 class ChangesTableParser(BaseTtgdtWebsiteParser):
-    async def parse(self, group: str = None):
+    async def parse(self, group: str = None) -> Dict[str, list["Change"]]:
         session = await self._ensure_session()
         async with session.get(self.url) as resp:
             html = await resp.text()
@@ -136,10 +137,11 @@ class ChangesTableParser(BaseTtgdtWebsiteParser):
 
                 if grp != "":
                     if check_grp and group != grp:
+                        current_group = None
                         continue
 
                     current_group = normilize_group_number(number=tds[0].get_text())
-                    changes[current_group] = []
+                    changes.setdefault(current_group, [])
 
                 tds = tds[1:]
 
@@ -153,7 +155,8 @@ class ChangesTableParser(BaseTtgdtWebsiteParser):
                 change = Change(index=indx, date=date, discipline=change_discipline, room=tds[3].get_text(),
                                 by_base=by_base)
 
-                changes.get(current_group).append(change)
+                if current_group:
+                    changes.get(current_group).append(change)
 
         return changes
 
@@ -178,6 +181,88 @@ class GroupsParser(BaseTtgdtWebsiteParser):
         grps = await self.parse()
         grps = [grp.number for grp in grps]
         return group in grps
+
+
+class AddictionsParser(BaseTtgdtWebsiteParser):
+    async def parse(self, date: Optional[datetime] = None):
+        if date is None:
+            date = datetime.now()
+
+        if date.weekday() > len(day_names) - 2:
+            return {}
+
+        session = await self._ensure_session()
+        async with session.get(self.url) as resp:
+            html = await resp.text()
+        bs = self.initbs(html)
+
+        table = bs.select_one('table.table.table-striped.table-bordered')
+        rows = table.find_all("tr")
+
+        need_day = day_names[date.weekday()]
+        current_group = None
+        next_is_even = None
+        addictions: Dict[str, List[Lesson]] = {}
+
+        for row in rows:
+            tds = row.find_all("td")
+            if len(tds) == 0: continue
+            if len(tds) == 1:
+                group_header = row.find("span", {"style": "color:#ffffff;"})
+                group_header_text = group_header.get_text().strip() if group_header else ""
+                if not group_header_text: continue
+                current_group = group_header_text
+                addictions.setdefault(group_header_text, [])
+                continue
+            if len(tds) == 4 and current_group:
+
+                day = tds[0].get_text().strip()
+                if need_day in day.lower():
+                    index = 0 if not "14.45-16.20" in day else 4
+                    disciplines = tds[1].get_text().strip().replace('\t', '').split('\n')
+                    teacher = tds[2].get_text().strip()
+                    room = tds[3].get_text().strip().replace('а.', '')
+
+                    if disciplines == ['']: continue
+                    if len(disciplines) == 1:
+                        lesson = Lesson(index=index, by_even_weeks=None, discipline=disciplines[0], teacher=teacher,
+                                        room=room, date=date)
+                        addictions[current_group].append(lesson)
+                        continue
+
+                    for part in disciplines:
+                        if "нечетная неделя" in part.lower():
+                            next_is_even = False
+                            continue
+                        elif "четная неделя" in part.lower():
+                            next_is_even = True
+                            continue
+
+                        lesson = Lesson(index=index, by_even_weeks=next_is_even, discipline=part, teacher=teacher,
+                                        room=room, date=date)
+                        addictions[current_group].append(lesson)
+                        next_is_even = None
+
+        return addictions
+
+
+async def parse_addictions(date: Optional[datetime] = None, url: HttpUrl = None) -> Dict[str, List[Lesson]]:
+    """
+    Parse addictions from website
+    :param date: date to get addictions (by default `datetime.now()`)
+    :param url: url to get addictions (by default `ttgdtparser.constants.addictions()`)
+    :return: list of addictions
+
+    Usage:
+
+        from ttgdtparser import parser, constants
+
+        changes = await parser.parse_addictions(constants.addictions())
+    """
+    url = addictions() if url is None else url
+
+    async with AddictionsParser(url) as parser:
+        return await parser.parse(date=date)
 
 
 async def parse_lessons(group: str, date: Optional[datetime] = None, url: HttpUrl = None) -> list[Lesson]:

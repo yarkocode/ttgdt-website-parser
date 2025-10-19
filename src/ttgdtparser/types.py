@@ -3,8 +3,8 @@ from typing import Optional, Any, Tuple, Union
 
 from pydantic import BaseModel, ValidationError, ConfigDict, field_validator
 
-from ttgdtparser.exc.parser import LessonIndexCantBeCorrectlyParsedException
-from ttgdtparser.helpers import is_time
+from .exc.parser import LessonIndexCantBeCorrectlyParsedException
+from .helpers import is_time
 
 
 class BaseLesson(BaseModel):

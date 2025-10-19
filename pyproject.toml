@@ -30,6 +30,11 @@ dev = [
     "pytest-asyncio>=1.2.0",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

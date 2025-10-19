@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from ttgdtparser.constants import changes_date_start_index, months
+from .constants import changes_date_start_index, months
 
-normilize_group_number = lambda number: number.strip().replace('.', ',')
+normilize_group_number = lambda number: number.strip().replace('.', ',').replace(' ', '')   
 normilize_group_number.__doc__ = """
 Replace unsupported chars from string group number in changes
 :param number: group number

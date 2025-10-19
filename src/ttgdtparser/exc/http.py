@@ -1,6 +1,6 @@
 from aiohttp import ClientResponse
 
-from ttgdtparser.exc.base import TtgdtWebsiteParserException
+from ..exc.base import TtgdtWebsiteParserException
 
 
 class HttpRequestException(TtgdtWebsiteParserException):

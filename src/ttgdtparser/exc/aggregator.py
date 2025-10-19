@@ -1,4 +1,4 @@
-from ttgdtparser.types import Change
+from ..types import Change
 
 
 class AggregatorException(Exception):

@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-from ttgdtparser.exc.base import TtgdtWebsiteParserException
+from ..exc.base import TtgdtWebsiteParserException
 
 
 class ParserException(TtgdtWebsiteParserException):
