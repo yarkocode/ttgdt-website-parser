@@ -12,6 +12,9 @@ class Aggregator:
         timed_changes: list[Change] = [ch for ch in changes if isinstance(ch.index, time)]
 
         for change in changes:
+            if isinstance(change.index, str) and change.index == "*":
+                return [change]
+
             if isinstance(change.index, list):
                 for idx in change.index:
                     original_lesson = lessons_map.get(idx)

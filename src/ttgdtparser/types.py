@@ -1,5 +1,5 @@
 from datetime import time, datetime
-from typing import Optional, Any, Tuple, Union
+from typing import Optional, Tuple
 
 from pydantic import BaseModel, ValidationError, ConfigDict, field_validator
 
@@ -18,12 +18,15 @@ class BaseLesson(BaseModel):
 
     @field_validator("index", mode="before")
     @classmethod
-    def normalize_index(cls, index: str | int) -> int | list[int] | time:
+    def normalize_index(cls, index: str | int) -> int | list[int] | time | str:
         if isinstance(index, int) or isinstance(index, list) or isinstance(index, time):
             return index
 
         if not isinstance(index, str):
             raise ValidationError("Index must be str or int")
+
+        if index.strip() == "":
+            return "*"
 
         cleaned_index = cls._remove_non_numeric(index)
 
