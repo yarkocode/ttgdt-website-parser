@@ -34,7 +34,7 @@ _website_base_url = "{protocol}://www.ttgdt.stu.ru"
 _raspisanie_zanyatij = "/students/raspisanie-zanyatij"
 _zam = "/students/zam"
 _groups = "/students/raspisanie-zanyatij-ochnyh-otdelenij"
-_addictions = "/students/raspisanie-dopolnitelnyh-zanyatij"
+_addictions = "/students/raspisanie-dopolnitelnyh-zanyatij-dlya-studentov-obuchayucshihsya-po-celevym-napravleniyam"
 
 base_url = _website_base_url.format(protocol="https")
 alternative_base_url = _website_base_url.format(protocol="http")
