@@ -23,7 +23,9 @@ class Aggregator:
                         if change.by_base:
                             raise LessonRequiredByIndexForChangeException(
                                 "Lesson by that index could not found to place the change", change.index, change)
-                        result_map[idx] = change
+                        rchange = change.model_copy()
+                        rchange.index = idx
+                        result_map[idx] = rchange
                         continue
 
                     if change.by_base:
