@@ -21,7 +21,9 @@ class Aggregator:
 
                     if original_lesson is None:
                         if change.by_base:
-                            # "По расписанию" но пары нет — пропускаем
+                            rchange = change.model_copy()
+                            rchange.index = idx
+                            result_map[idx] = rchange
                             continue
                         rchange = change.model_copy()
                         rchange.index = idx
@@ -45,6 +47,7 @@ class Aggregator:
                 if original_lesson is None:
                     if change.by_base:
                         # "По расписанию" но пары нет — пропускаем
+                        result_map[change.index] = change
                         continue
                     result_map[change.index] = change
                     continue
