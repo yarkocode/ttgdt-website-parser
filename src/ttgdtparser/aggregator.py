@@ -4,7 +4,7 @@ from typing import List, Tuple, Union
 from .exc.aggregator import LessonRequiredByIndexForChangeException
 from .types import Lesson, Change, BaseLesson, LessonMatch
 
- 
+
 class Aggregator:
     def accumulate(self, lessons: List[Lesson], changes: List[Change]) -> List[BaseLesson]:
         lessons_map: dict[int, Lesson] = {l.index: l for l in lessons}
@@ -21,8 +21,8 @@ class Aggregator:
 
                     if original_lesson is None:
                         if change.by_base:
-                            raise LessonRequiredByIndexForChangeException(
-                                "Lesson by that index could not found to place the change", change.index, change)
+                            # "По расписанию" но пары нет — пропускаем
+                            continue
                         rchange = change.model_copy()
                         rchange.index = idx
                         result_map[idx] = rchange
@@ -44,8 +44,8 @@ class Aggregator:
 
                 if original_lesson is None:
                     if change.by_base:
-                        raise LessonRequiredByIndexForChangeException(
-                            "Lesson by that index could not found to place the change", change.index, change)
+                        # "По расписанию" но пары нет — пропускаем
+                        continue
                     result_map[change.index] = change
                     continue
 

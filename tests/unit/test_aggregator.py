@@ -98,11 +98,15 @@ class TestAggregatorAccumulateMethod(TestAggregator):
                 [Change(index='2', discipline='По расписанию', room='404', date=datetime.today(), by_base=True)]
         )
     ])
-    def test_raise_base_lesson_required_for_by_base_flag(self, aggregator: Aggregator,
-                                                         lessons: List[Lesson],
-                                                         changes: List[Change]):
-        with pytest.raises(LessonRequiredByIndexForChangeException):
-            aggregator.accumulate(lessons, changes)
+    def test_by_base_with_missing_lesson_keeps_original(self, aggregator: Aggregator,
+                                                        lessons: List[Lesson],
+                                                        changes: List[Change]):
+        """by_base=True change referencing non-existent lesson should be silently skipped,
+        original timetable remains unchanged."""
+        result = aggregator.accumulate(lessons, changes)
+        assert len(result) == 1
+        assert result[0].index == 1
+        assert result[0].discipline == 'Графический дизайн'
 
 
 class TestAggregatorMatchMethod(TestAggregator):
